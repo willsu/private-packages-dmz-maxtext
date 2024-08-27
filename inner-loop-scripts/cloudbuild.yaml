@@ -1,0 +1,139 @@
+substitutions:
+  # Replace with output from project_setup.sh or configure as needed,
+  # or allow dynamic replacement by the dmz-scripts Cloud Build job.
+  # The steps below will require all of these entities to exist (except the TPU configured below)
+  _REGION: "us-central1"
+  _ZONE: "us-central1-a"
+  _APT_REPO_BASE_URL: "https://${_REGION}-apt.pkg.dev/projects/${PROJECT_ID}"
+  _APT_REPO_NAME: "apt-inner-loop"
+  _PIP_REPO_BASE_URL: "https://${_REGION}-python.pkg.dev/${PROJECT_ID}"
+  _PIP_REPO_NAME: "pip-inner-loop"
+  _TPU_VM_NAME: "tpu-inner-loop-ci"
+  # _MAXTEXT_SRC_URL will be substitued dynamically when the dmz submits a build for the inner loop.
+  _MAXTEXT_SRC_URL: "<replaced at runtime>"
+  _MAXTEXT_TEST_BUCKET: "gs://maxtext-tests-1mzdyw"
+  _MAXTEXT_TEST_JOB_NAME: "test-job"
+  _MAXTEXT_ARTIFACTS_BUCKET_INNER: "gs://maxtext-artifacts-inner-1mzdyw"
+  _TPU_ACCELERATOR_TYPE: "v3-8"
+  _TPU_RUNTIME_VERSION: "tpu-ubuntu2204-base"
+  _TPU_SERVICE_ACCOUNT: "tpu-service-account-inner-loop@maxtext-qa-inner-12.iam.gserviceaccount.com"
+  _WORKER_SERVICE_ACCOUNT: "cloud-build-agent-inner-loop@${PROJECT_ID}.iam.gserviceaccount.com"
+
+steps:
+- # Create the TPU VM
+  id: 'create-inner-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-exo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm create ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --accelerator-type=${_TPU_ACCELERATOR_TYPE} \
+      --version=${_TPU_RUNTIME_VERSION} \
+      --network=vpc-inner-loop \
+      --subnetwork=subnet-inner-loop \
+      --shielded-secure-boot \
+      --spot \
+      --internal-ips \
+      --project=${PROJECT_ID} \
+      --metadata='google-logging-enabled=true' \
+      --service-account=${_TPU_SERVICE_ACCOUNT}
+
+- # Prepare the TPU VM
+  id: 'prep-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-exo'
+  - 'pipefail'
+  - '-c'
+  - >
+    inner-loop-scripts/prep-tpu-vm.sh \
+      ${_TPU_VM_NAME} \
+      ${_ZONE}
+
+- # Configure the inner TPU VM and install Maxtext
+  id: 'configure-and-install-maxtext-inner-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./setup-inner.sh \
+                   ${_APT_REPO_BASE_URL} \
+                   ${_APT_REPO_NAME} \
+                   ${_PIP_REPO_BASE_URL} \
+                   ${_PIP_REPO_NAME} \
+                   ${_MAXTEXT_SRC_URL} \
+                   ${_REGION}"
+
+- # Run Maxtext Test on TPU to ensure that installation runs as expected.
+  id: 'run-maxtext-tests'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./run-maxtext-tests.sh \
+                   ${_MAXTEXT_TEST_JOB_NAME} \
+                   ${_MAXTEXT_TEST_BUCKET}"
+
+- # Run Maxtext Test on TPU to ensure that installation runs as expected.
+  id: 'print-installed-packages'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./print-installed-packages.sh"
+
+- # Upload lists of all installed Apt and Pip packages
+  id: 'copy-artifacts-from-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm scp \
+      ${_TPU_VM_NAME}:apt-installed.out \
+      ${_TPU_VM_NAME}:pip-installed.out \
+      . \
+      --worker=all \
+      --zone=${_ZONE} \
+      --tunnel-through-iap
+
+artifacts:
+  objects:
+    location: "${_MAXTEXT_ARTIFACTS_BUCKET_INNER}/${PROJECT_ID}-${BUILD_ID}"
+    paths: ['apt-installed.out',
+            'pip-installed.out']
+
+serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/${_WORKER_SERVICE_ACCOUNT}'
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'

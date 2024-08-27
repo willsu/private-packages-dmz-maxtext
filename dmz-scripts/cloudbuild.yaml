@@ -1,0 +1,67 @@
+substitutions:
+  _REGION: "us-central1"
+  _OUTER_PROJECT_ID: "${PROJECT_ID}"
+  _OUTER_APT_REPO_NAME: "apt-outer-loop"
+  _OUTER_PIP_BASE_URL: "https://${_REGION}-apt.pkg.dev/projects/${PROJECT_ID}"
+  _OUTER_PIP_REPO_NAME: "pip-outer-loop"
+  _INNER_PROJECT_ID: "maxtext-qa-inner-12"
+  _INNER_APT_REPO_NAME: "apt-inner-loop"
+  _INNER_PIP_BASE_URL: "https://${_REGION}-python.pkg.dev/${_INNER_PROJECT_ID}"
+  _INNER_PIP_REPO_NAME: "pip-inner-loop"
+  _MAXTEXT_BUCKET_INNER_URL: "gs://maxtext-artifacts-inner-1mzdyw"
+  _WORKER_SERVICE_ACCOUNT: "cloud-build-agent-dmz@${_OUTER_PROJECT_ID}.iam.gserviceaccount.com"
+  _FAIL_ON_VULN: "0"
+  # _BUILD_ARTIFACTS_URL will be substituted dynamically when the outer-loop submits a build for the dmz.
+  _BUILD_ARTIFACTS_URL: "<substituted at runtime>"
+
+steps:
+- # Create the TPU VM
+  id: 'sync-packages-from-outer-to-inner-loop'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - > 
+    dmz-scripts/sync-packages-to-inner-loop.sh \
+      ${_INNER_PROJECT_ID} \
+      ${_OUTER_PROJECT_ID} \
+      ${_OUTER_APT_REPO_NAME} \
+      ${_INNER_APT_REPO_NAME} \
+      ${_INNER_PIP_BASE_URL} \
+      ${_INNER_PIP_REPO_NAME} \
+      ${_OUTER_PIP_BASE_URL} \
+      ${_OUTER_PIP_REPO_NAME} \
+      ${_BUILD_ARTIFACTS_URL} \
+      ${_FAIL_ON_VULN} \
+      ${_REGION} \
+      ${_MAXTEXT_BUCKET_INNER_URL}
+
+- # submit DMZ Build
+  # Note: This step could be handled via Pub/Sub and a Cloud Build Trigger,
+  # but is called explictly (and asynchronously) for simplicity purposes.
+  id: 'submit-inner-loop-build'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-exo'
+  - 'pipefail'
+  - '-c'
+  - >
+    dmz-scripts/submit-inner-loop-build.sh \
+      ${_INNER_PROJECT_ID} \
+      ${_REGION}
+
+artifacts:
+  objects:
+    location: "${_MAXTEXT_BUCKET_INNER_URL}/${PROJECT_ID}-${BUILD_ID}"
+    paths: ['maxtext-src-inner-url.out']
+
+serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/${_WORKER_SERVICE_ACCOUNT}'
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'
+

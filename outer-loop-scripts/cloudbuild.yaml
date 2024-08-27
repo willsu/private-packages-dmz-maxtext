@@ -1,0 +1,185 @@
+substitutions:
+  # Replace with output from project_setup.sh or configure as needed.
+  # The steps below will require all of these entities to exist (except the TPU configured below)
+  _REGION: "us-central1"
+  _ZONE: "us-central1-a"
+  _APT_REPO_BASE_URL: "https://us-central1-apt.pkg.dev/projects/${PROJECT_ID}"
+  _APT_REPO_NAME: "apt-outer-loop"
+  _PIP_REPO_BASE_URL: "https://us-central1-python.pkg.dev/${PROJECT_ID}"
+  _PIP_REPO_NAME: "pip-outer-loop"
+  _TPU_VM_NAME: "tpu-outer-loop-ci"
+  _MAXTEXT_GIT_URL: "https://github.com/google/maxtext.git"
+  _MAXTEXT_BUCKET_URL: "gs://maxtext-artifacts-outer-1mzdyw"
+  _TPU_ACCELERATOR_TYPE: "v3-8"
+  _TPU_RUNTIME_VERSION: "tpu-ubuntu2204-base"
+  _WORKER_SERVICE_ACCOUNT: "cloud-build-agent-outer-loop@${PROJECT_ID}.iam.gserviceaccount.com"
+steps:
+- # Create the TPU VM
+  id: 'create-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-exo'
+  - 'pipefail'
+  - '-c'
+  - >
+    outer-loop-scripts/create-tpu-vm.sh \
+      ${_TPU_VM_NAME} \
+      ${_TPU_ACCELERATOR_TYPE} \
+      ${_TPU_RUNTIME_VERSION} \
+      ${_ZONE}
+
+- # Prepare the TPU VM
+  id: 'prep-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-exo'
+  - 'pipefail'
+  - '-c'
+  - >
+    outer-loop-scripts/prep-tpu-vm.sh \
+      ${_TPU_VM_NAME} \
+      ${_MAXTEXT_GIT_URL} \
+      ${_ZONE}
+
+- # Create the TPU VM
+  id: 'install-max-repo-on-tpu'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./install-max-text-on-tpu.sh \
+                   ${_REGION}"
+    
+- # Organize and configure new Apt and Pip packages
+  id: 'organize-package-distributions-on-tpu'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./organize-package-distributions-on-tpu.sh \
+                   ${_APT_REPO_BASE_URL} \
+                   ${_APT_REPO_NAME} \
+                   ${_PIP_REPO_BASE_URL} \
+                   ${_PIP_REPO_NAME} \
+                   ${_REGION}"
+
+- # Upload new Apt and Pip packages
+  id: 'upload-packages-to-artifact-registry'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./upload-packages-on-tpu.sh \
+                   ${_APT_REPO_NAME} \
+                   ${_PIP_REPO_BASE_URL} \
+                   ${_PIP_REPO_NAME} \
+                   ${_MAXTEXT_BUCKET_URL} \
+                   ${_REGION}"
+
+- # Scan Apt and Pip packages for vulnerabilities
+  id: 'scan-packages-on-tpu'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm ssh ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --worker=all \
+      --tunnel-through-iap \
+      --command="./scan-packages-on-tpu.sh"
+
+- # Upload new Apt and Pip packages
+  id: 'copy-new-package-lists-from-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm scp \
+      ${_TPU_VM_NAME}:apt-new-packages.out \
+      ${_TPU_VM_NAME}:apt-new-vuln-results.out \
+      ${_TPU_VM_NAME}:apt-scan-full-results.json \
+      ${_TPU_VM_NAME}:pip-new-packages.out \
+      ${_TPU_VM_NAME}:pip-new-vuln-results.out \
+      ${_TPU_VM_NAME}:pip-scan-full-results.json \
+      ${_TPU_VM_NAME}:maxtext-src-url.out \
+      . \
+      --worker=all \
+      --zone=${_ZONE} \
+      --tunnel-through-iap
+
+- # Delete the TPU VM
+  id: 'delete-tpu-vm'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud alpha compute tpus tpu-vm delete ${_TPU_VM_NAME} \
+      --zone=${_ZONE} \
+      --quiet
+
+- # submit DMZ Build
+  # Note: This step could be handled via Pub/Sub and a Cloud Build Trigger,
+  # but is called explictly (and asynchronously) for simplicity purposes.
+  id: 'submit-dmz-build'
+  name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+  - '-eo'
+  - 'pipefail'
+  - '-c'
+  - >
+    gcloud builds submit \
+      --async \
+      --substitutions="_BUILD_ARTIFACTS_URL=${_MAXTEXT_BUCKET_URL}/${PROJECT_ID}-${BUILD_ID}/artifacts-${BUILD_ID}.json" \
+      --region ${_REGION} \
+      --config dmz-scripts/cloudbuild.yaml \
+      .
+
+artifacts:
+  objects:
+    location: "${_MAXTEXT_BUCKET_URL}/${PROJECT_ID}-${BUILD_ID}"
+    paths: ['apt-new-packages.out',
+            'apt-new-vuln-results.out',
+            'apt-scan-full-results.json',
+            'pip-new-packages.out',
+            'pip-new-vuln-results.out',
+            'pip-scan-full-results.json']
+
+serviceAccount: 'projects/${PROJECT_ID}/serviceAccounts/${_WORKER_SERVICE_ACCOUNT}'
+
+options:
+  dynamic_substitutions: true
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'
