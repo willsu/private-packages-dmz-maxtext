@@ -132,3 +132,19 @@ resource "google_compute_firewall" "outer_loop_allow_inbound_from_gcp" {
   target_tags = ["http-server", "https-server"]
   priority = 1000
 }
+
+output "artifacts_bucket_url" {
+  value = google_storage_bucket.outer_loop_artifacts_bucket.url
+}
+
+output "apt_repo_name" {
+  value = google_artifact_registry_repository.outer_loop_apt_repo.name
+}
+
+output "pip_repo_name" {
+  value = google_artifact_registry_repository.outer_loop_pip_repo.name
+}
+
+output "result" {
+  value = "finished"
+}

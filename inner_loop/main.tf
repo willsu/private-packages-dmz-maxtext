@@ -186,3 +186,23 @@ resource "google_dns_record_set" "inner_loop_a_record" {
 output "cloud_build_agent_email" {
   value = google_service_account.inner_loop_cloud_build_agent.email
 }
+
+output "artifacts_bucket_url" {
+  value = google_storage_bucket.inner_loop_artifacts_bucket.url
+}
+
+output "tests_bucket_url" {
+  value = google_storage_bucket.inner_loop_tests_bucket.url
+}
+
+output "apt_repo_name" {
+  value = google_artifact_registry_repository.inner_loop_apt_repo.name
+}
+
+output "pip_repo_name" {
+  value = google_artifact_registry_repository.inner_loop_pip_repo.name
+}
+
+output "result" {
+  value = "finished"
+}

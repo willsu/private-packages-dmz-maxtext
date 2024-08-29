@@ -62,3 +62,7 @@ resource "google_service_account_iam_member" "dmz_service_account_inner_loop_clo
   role                = "roles/editor"
   member              = "serviceAccount:${google_service_account.dmz_service_account.email}"
 }
+
+output "result" {
+  value = "finished"
+}

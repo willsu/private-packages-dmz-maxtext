@@ -54,3 +54,30 @@ module "dmz" {
   inner_loop_cloud_build_agent_email = module.inner_loop.cloud_build_agent_email
   api_enablement_result = module.enable_apis.result
 }
+
+resource "null_resource" "cloud_build_template_output" {
+  provisioner "local-exec" {
+    command     = <<-EOF
+    ${path.cwd}/cloud-build-template-values.sh \
+      ${var.outer_project_id} \
+      ${var.inner_project_id} \
+      ${var.region} \
+      ${var.zone} \
+      ${module.outer_loop.artifacts_bucket_url} \
+      ${module.inner_loop.artifacts_bucket_url} \
+      ${module.inner_loop.tests_bucket_url} \
+      ${module.outer_loop.apt_repo_name} \
+      ${module.outer_loop.pip_repo_name} \
+      ${module.inner_loop.apt_repo_name} \
+      ${module.inner_loop.pip_repo_name} \
+      ${var.tpu_accelerator_type} \
+      ${var.tpu_runtime_version}
+    EOF
+
+    interpreter = ["bash", "-c"]
+  }
+  depends_on = [module.outer_loop.result, module.inner_loop.result, module.dmz.result]
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+}
