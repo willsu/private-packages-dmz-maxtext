@@ -37,7 +37,7 @@ TPU_ACCELERATOR_TYPE=${12:-v3-8}
 #TPU_ACCELERATOR_TYPE=${12:-v4-8}
 TPU_RUNTIME_VERSION=${13:-tpu-ubuntu2204-base}
 
-gcloud services enable \
+gcloud services enable --project $OUTER_PROJECT_ID \
   artifactregistry.googleapis.com \
   tpu.googleapis.com \
   cloudbuild.googleapis.com \
