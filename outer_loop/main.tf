@@ -128,8 +128,7 @@ resource "google_compute_firewall" "outer_loop_allow_inbound_from_gcp" {
   allow {
     protocol = "icmp"
   }
-  source_ranges = ["0.0.0.0/0"]
-  target_tags = ["http-server", "https-server"]
+  source_ranges = ["35.235.240.0/20"]
   priority = 1000
 }
 
