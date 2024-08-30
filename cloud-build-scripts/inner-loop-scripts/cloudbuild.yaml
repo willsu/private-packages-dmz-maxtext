@@ -11,9 +11,9 @@ substitutions:
   _TPU_VM_NAME: "tpu-inner-loop-ci"
   # _MAXTEXT_SRC_URL will be substitued dynamically when the dmz submits a build for the inner loop.
   _MAXTEXT_SRC_URL: "<replaced at runtime>"
-  _MAXTEXT_TEST_BUCKET: "gs://gs://maxtext-tests-ycpw"
+  _MAXTEXT_TEST_BUCKET: "gs://maxtext-tests-ycpw"
   _MAXTEXT_TEST_JOB_NAME: "test-job"
-  _MAXTEXT_ARTIFACTS_BUCKET_INNER: "gs://gs://maxtext-artifacts-inner-ycpw"
+  _MAXTEXT_ARTIFACTS_BUCKET_INNER: "gs://maxtext-artifacts-inner-ycpw"
   _TPU_ACCELERATOR_TYPE: "v3-8"
   _TPU_RUNTIME_VERSION: "tpu-ubuntu2204-base"
   _TPU_SERVICE_ACCOUNT: "tpu-service-account-inner-loop@maxtext-qa-inner-14.iam.gserviceaccount.com"

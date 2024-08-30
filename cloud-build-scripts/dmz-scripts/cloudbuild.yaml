@@ -8,7 +8,7 @@ substitutions:
   _INNER_APT_REPO_NAME: "apt-inner-loop"
   _INNER_PIP_BASE_URL: "https://${_REGION}-python.pkg.dev/${_INNER_PROJECT_ID}"
   _INNER_PIP_REPO_NAME: "pip-inner-loop"
-  _MAXTEXT_BUCKET_INNER_URL: "gs://gs://maxtext-artifacts-inner-ycpw"
+  _MAXTEXT_BUCKET_INNER_URL: "gs://maxtext-artifacts-inner-ycpw"
   _WORKER_SERVICE_ACCOUNT: "cloud-build-agent-dmz@${_OUTER_PROJECT_ID}.iam.gserviceaccount.com"
   _FAIL_ON_VULN: "0"
   # _BUILD_ARTIFACTS_URL will be substituted dynamically when the outer-loop submits a build for the dmz.
