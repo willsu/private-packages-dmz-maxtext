@@ -17,13 +17,17 @@ Configure the gcloud cli to use the outer loop project
 gcloud config set project maxtext-sample-outer
 ```
 
-Run the project_setup.sh script.
-Note: See project_setup.sh script for more positional arguments
+Initialize and Apply the Terraform configuration
 ```
-./project_setup.sh maxtext-sample-outer maxtext-sample-inner
+terraform init
+
+terraform apply \
+  -var="outer_project_id=maxtext-qa-outer" \
+  -var="outer_project_number=690154213242" \
+  -var="inner_project_id=maxtext-qa-inner"
 ```
 
-Follow the instructions printed by the project_setup.sh script and replace the values in the corresponding Cloud Build configurations (i.e. outer-loop-scripts/cloudbuild.yaml, dmz-scripts/cloudbuild.yaml, inner-loop-scripts/cloudbuild.yaml)
+Follow the instructions printed by the 'terraform apply' command and replace the values in the corresponding Cloud Build configurations (i.e. outer-loop-scripts/cloudbuild.yaml, dmz-scripts/cloudbuild.yaml, inner-loop-scripts/cloudbuild.yaml)
 
 Submit the Outer Loop build and see all 3 Cloud Build Pipelines run successfully. 
 Note: The Outer Loop pipeline will build submit a build for the DMZ pipeline, which will submit a build for the Inner Loop pipeline.
@@ -36,6 +40,7 @@ gcloud builds submit \
   .
 ```
 
-The Outer Loop pipeline will take about 20 minutes to run.
-The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
-The Inner Loop pipeline will take about 10 minutes to run.
+Expected Elapsed Times for Buildds:
+* The Outer Loop pipeline will take about 20 minutes to run.
+* The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
+* The Inner Loop pipeline will take about 10 minutes to run.
