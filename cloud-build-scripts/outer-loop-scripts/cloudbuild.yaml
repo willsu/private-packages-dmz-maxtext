@@ -9,7 +9,7 @@ substitutions:
   _PIP_REPO_NAME: "pip-outer-loop"
   _TPU_VM_NAME: "tpu-outer-loop-ci"
   _MAXTEXT_GIT_URL: "https://github.com/google/maxtext.git"
-  _MAXTEXT_BUCKET_URL: "gs://maxtext-artifacts-outer-<replace>"
+  _MAXTEXT_BUCKET_URL: "gs://maxtext-artifacts-outer-ycpw"
   _TPU_ACCELERATOR_TYPE: "v3-8"
   _TPU_RUNTIME_VERSION: "tpu-ubuntu2204-base"
   _WORKER_SERVICE_ACCOUNT: "cloud-build-agent-outer-loop@${PROJECT_ID}.iam.gserviceaccount.com"

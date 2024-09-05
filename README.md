@@ -17,13 +17,17 @@ Configure the gcloud cli to use the outer loop project
 gcloud config set project maxtext-sample-outer
 ```
 
-Run the project_setup.sh script.
-Note: See project_setup.sh script for more positional arguments
+Initialize and Apply the Terraform configuration
 ```
-./project_setup.sh maxtext-sample-outer maxtext-sample-inner
+terraform init
+
+terraform apply \
+  -var="outer_project_id=maxtext-qa-outer" \
+  -var="outer_project_number=690154213242" \
+  -var="inner_project_id=maxtext-qa-inner"
 ```
 
-Follow the instructions printed by the project_setup.sh script and replace the values in the corresponding Cloud Build configurations (i.e. outer-loop-scripts/cloudbuild.yaml, dmz-scripts/cloudbuild.yaml, inner-loop-scripts/cloudbuild.yaml)
+Follow the instructions printed by the 'terraform apply' command and replace the values in the corresponding Cloud Build configurations (i.e. outer-loop-scripts/cloudbuild.yaml, dmz-scripts/cloudbuild.yaml, inner-loop-scripts/cloudbuild.yaml)
 
 Submit the Outer Loop build and see all 3 Cloud Build Pipelines run successfully. 
 Note: The Outer Loop pipeline will build submit a build for the DMZ pipeline, which will submit a build for the Inner Loop pipeline.
@@ -36,6 +40,11 @@ gcloud builds submit \
   .
 ```
 
-The Outer Loop pipeline will take about 20 minutes to run.
-The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
-The Inner Loop pipeline will take about 10 minutes to run.
+If all is successful, there will be 2 builds that run in the outer loop and 1 build that runs in the inner loop. If the inner loop is successful, this means that the package syncing worked correctly. 
+
+Please note: The inner loop builds with leave a TPU VM machine running, because it is expected that this machine will be used to process real data. If this is not your desired use case, please delete the TPU VM and/or an additional build step in the inner-loop-scripts/cloudbuild.yaml to delete the TPU VM.
+
+Expected Elapsed Times for Builds:
+* The Outer Loop pipeline will take about 20 minutes to run.
+* The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
+* The Inner Loop pipeline will take about 10 minutes to run.
