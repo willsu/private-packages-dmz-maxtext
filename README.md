@@ -40,7 +40,11 @@ gcloud builds submit \
   .
 ```
 
-Expected Elapsed Times for Buildds:
+If all is successful, there will be 2 builds that run in the outer loop and 1 build that runs in the inner loop. If the inner loop is successful, this means that the package syncing worked correctly. 
+
+Please note: The inner loop builds with leave a TPU VM machine running, because it is expected that this machine will be used to process real data. If this is not your desired use case, please delete the TPU VM and/or an additional build step in the inner-loop-scripts/cloudbuild.yaml to delete the TPU VM.
+
+Expected Elapsed Times for Builds:
 * The Outer Loop pipeline will take about 20 minutes to run.
 * The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
 * The Inner Loop pipeline will take about 10 minutes to run.
