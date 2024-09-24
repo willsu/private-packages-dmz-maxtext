@@ -1,6 +1,9 @@
 # Description
 
-This project serves as a reference implementation of the Google Cloud Package DMZs design pattern using the Maxtext LLM. 
+This project serves as a reference implementation of the Google Cloud Package DMZs design pattern using the Maxtext LLM. Please see the associated Medium article, [Packages DMZ: a Secure Devops Design Pattern for TPU VMs Processing Private Data](https://medium.com/@willsulzer/packages-dmz-a-secure-devops-design-pattern-for-tpu-vms-processing-private-data-5b8f90eb429d), for more information.
+## Overview
+<img src="https://github.com/user-attachments/assets/1084d607-5bac-42c3-9d87-a746c07149c6" width="800px"/>
+<br/><br/>
 
 Users processing sensitive data with TPU VMs can significantly increase the security of their Workloads by running their workloads on a private network (VPC), preventing external connectivity to the public Internet. Preventing access to the public Internet signifanctly reduces the attack surface for potential data exfiltration and further minimizes the potential entry points for malicious actors to exploit. However, the TPU VM must still be able to install the required software (e.g. an LLM) and dependencies (Apt/Pip packages) when it is provisioned within the private network. This presents a challenge when the required software depends on a large variety of open source, externally hosted software libraries. Since we can only depended on connectivity to private software package repositories then we need a way of pre-installing the packages before the TPU VM is provisioned.
 
@@ -23,7 +26,7 @@ terraform init
 
 terraform apply \
   -var="outer_project_id=maxtext-qa-outer" \
-  -var="outer_project_number=690154213242" \
+  -var="outer_project_number=790154213242" \
   -var="inner_project_id=maxtext-qa-inner"
 ```
 
@@ -48,3 +51,14 @@ Expected Elapsed Times for Builds:
 * The Outer Loop pipeline will take about 20 minutes to run.
 * The DMZ pipeline will take about 20 minutes to run the first time, and then closer to 5 minutes on subsequent runs.
 * The Inner Loop pipeline will take about 10 minutes to run.
+
+The Following diagrams describe the Outer, DMZ, and Inner Loops below:
+### Outer Loop Details
+<img src="https://github.com/user-attachments/assets/67862ef5-c9ad-4265-96c7-0f7d7fa03b01" width="800px"/>
+
+### DMZ Loop Details
+<img src="https://github.com/user-attachments/assets/478569b2-4d36-43c4-a465-a36f21845772" width="800px"/>
+
+### Inner Loop Details
+<img src="https://github.com/user-attachments/assets/30c7f053-75e5-4d9d-a7fa-4420c2e14c3a" width="800px"/>
+
